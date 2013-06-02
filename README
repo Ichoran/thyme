@@ -11,50 +11,10 @@ If you want to build the project, just compile everything in maths
 together and then everything in bench--that works fine.  If you're on
 a Unixy system, there's makefile which works also (and builds the docs).
 
-Thyme.jar is included.  Why not try it out!  Try this, then check the source
-code of bench/Examples.scala to see what's happening (tldr--it measures the
-relative time taken by three different methods as they do they're thing
-embedded in some other code):
+There are no dependencies save Scala 2.10 itself.
 
-$ scala -cp Thyme.jar ichi.bench.examples.ParsleyExample
-Parsley profiling, 3564 ticks sampled
-Fractional time taken: 
-   46.971% +- 0.836%   = Method 2
-   26.192% +- 0.736%   = Method 3
-   23.584% +- 0.711%   = Method 1
-Relative time taken per entry (observed entries only): 
-  100.000% +- 2.516%   = Method 2
-   55.834% +- 1.857%   = Method 3
-   50.544% +- 1.769%   = Method 1
-
-Parsley profiling, 173 ticks sampled
-Fractional time taken: 
-    0.571% +- 0.568%   = one
-    0.571% +- 0.568%   = two
-    0.571% +- 0.568%   = three
-
-Parsley profiling, 3524 ticks sampled
-Fractional time taken: 
-   46.852% +- 0.840%   = Method 2
-   26.149% +- 0.740%   = Method 1
-   26.092% +- 0.739%   = Method 3
-
-Method 1
-  Elapsed time: 2.910 s
-  Garbage collection (4 sweeps) took: 13. ms
-  0 classes were loaded
-Method 2
-  Elapsed time: 5.576 s
-  Garbage collection (4 sweeps) took: 9. ms
-  0 classes were loaded
-Method 3
-  Elapsed time: 3.054 s
-  Garbage collection (4 sweeps) took: 6. ms
-  0 classes were loaded
-$
-
-
-Or, try Thyme's in-place benchmarking capabilities, like so:
+Thyme.jar is included (or you can just grab the jar itself).  Why not try it
+out!  You can do it right in the REPL, like so:
 
 $ scala -cp Thyme.jar
 Welcome to Scala version 2.10.1 (Java HotSpot(TM) 64-Bit Server VM, Java
@@ -97,3 +57,47 @@ Significantly different (p ~= 0)
 res2: Int = 333833500
 
 scala> :quit
+
+
+Parsley is a local profiler that also can be useful.  Try this, then check
+the source code of bench/Examples.scala to see what's happening (tldr--it
+measures the relative time taken by three different methods as they do
+they're thing embedded in some other code):
+
+$ scala -cp Thyme.jar ichi.bench.examples.ParsleyExample
+Parsley profiling, 3564 ticks sampled
+Fractional time taken: 
+   46.971% +- 0.836%   = Method 2
+   26.192% +- 0.736%   = Method 3
+   23.584% +- 0.711%   = Method 1
+Relative time taken per entry (observed entries only): 
+  100.000% +- 2.516%   = Method 2
+   55.834% +- 1.857%   = Method 3
+   50.544% +- 1.769%   = Method 1
+
+Parsley profiling, 173 ticks sampled
+Fractional time taken: 
+    0.571% +- 0.568%   = one
+    0.571% +- 0.568%   = two
+    0.571% +- 0.568%   = three
+
+Parsley profiling, 3524 ticks sampled
+Fractional time taken: 
+   46.852% +- 0.840%   = Method 2
+   26.149% +- 0.740%   = Method 1
+   26.092% +- 0.739%   = Method 3
+
+Method 1
+  Elapsed time: 2.910 s
+  Garbage collection (4 sweeps) took: 13. ms
+  0 classes were loaded
+Method 2
+  Elapsed time: 5.576 s
+  Garbage collection (4 sweeps) took: 9. ms
+  0 classes were loaded
+Method 3
+  Elapsed time: 3.054 s
+  Garbage collection (4 sweeps) took: 6. ms
+  0 classes were loaded
+$
+
