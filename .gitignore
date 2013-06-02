@@ -1,3 +1,7 @@
 *.html
 *.js
+*.css
+*.gif
+*.png
 *.class
+*~

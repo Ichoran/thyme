@@ -24,6 +24,11 @@ import ichi.maths._
  * benchmarking methods of four classes, depending on the sophistication
  * one requires.
  * 
+ * Every test in Thyme expects a return value.  This is not an accident!
+ * The JIT compiler will throw away your computations if it can figure out that
+ * they don't matter.  Make them matter by returning a value that depends upon
+ * all the work that's been done.
+ * 
  * '''clock''' and related functions simply measure wall-clock time
  * (using Java's `System.nanoTime`) and otherwise get out of your way.
  * 
@@ -63,6 +68,12 @@ import ichi.maths._
  * testing performance tweaks in the REPL, and other common and quick
  * benchmarking tasks where you just want the right thing to happen with a
  * minimum of pomp and circumstance.
+ * 
+ * @define COMBO
+ * Strategy for combining answers from repeated calls.  Default is to take the first or second depending on `unpredictablyFirst`.
+ * 
+ * @define RET_V
+ * One of the answers computed by `f` as selected by `g`
  */
 class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watchGarbage: Boolean = true, watchMemory: Boolean = true) { self =>
   private[this] val setupStartTime = System.nanoTime
@@ -246,10 +257,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
   // "Bench" handling--repeated timed runs for microbenchmarking
   // ------------------------------------------------------------
   
-  /** This variable is used internally to thwart JVM optimization strategies that might confound microbenchmarking results \
-   * @define COMBO Strategy for combining answers from repeated calls.  Default is to take the first or second depending on `unpredictablyFirst`.
-   * @define RET_V One of the answers computed by `f` as selected by `g`
-   */
+  /** This variable is used internally to thwart JVM optimization strategies that might confound microbenchmarking results */
   @volatile var unpredictablyFirst = false
   private val genericPicker: ((Any, Any) => Any) = if (unpredictablyFirst) _ else _
   
