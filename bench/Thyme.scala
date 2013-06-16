@@ -74,6 +74,12 @@ import ichi.maths._
  * 
  * @define RET_V
  * One of the answers computed by `f` as selected by `g`
+ * 
+ * @define EFFRT
+ * Number of operations intrinsic to each call to `f` (default 1); this is used only to divide the reported time-per-operation.
+ * 
+ * @define EHHRT
+ * Number of operations intrinsic to each call to `h` (default 1); this is used only to divide the reported time-per-operation.
  */
 class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watchGarbage: Boolean = true, watchMemory: Boolean = true) { self =>
   private[this] val setupStartTime = System.nanoTime
@@ -409,7 +415,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
    * @param op $COMBO
    * @param sampleSize Minimum number of times to run the benchmark (for averaging, default 20)
    * @param minRepeats Number of times to repeat `f` within one benchmark (default 1)
-   * @param effort Number of iterations intrinsic to each call to `f` (default 1)
+   * @param effort $EFFRT
    * @param knownWarm Skip warmup?  (default: false)
    * @param targetTimeOverride Override the default target time for this benchmark
    * @return $RET_V
@@ -537,7 +543,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
   
   /** Benchmarks `f`, prints a report, and returns the result.
    * @param f The code to benchmark
-   * @param effort The number of iterations internal to `f` (default 1; for scaling)
+   * @param effort $EFFRT
    * @param title If nonempty, will print on the first line
    * @param pr Place to send the output (default is println)
    * @return $RET_V
@@ -558,9 +564,9 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
    * The benchmark randomly shuffles between calls to `f` and `h` and analyzes the time taken as a function of
    * the proportion of calls to `f` vs `h`.
    * @param f The first code block to benchmark
-   * @param feffort The number of iterations intrinsic to `f` (default 1)
+   * @param feffort $EFFRT
    * @param h The second code block to benchmark
-   * @param heffort The number of iterations intrinsic to `h` (default 1)
+   * @param heffort $EHHRT
    * @param bf The data structure to store the results
    * @param op $COMBO
    * @param sampleSize Minimum number of different mixtures of `f` and `h` (for averaging, default 20)
@@ -672,7 +678,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
   }
   
   /** Benchmarks `f` against `h` and returns both the result and a benchmark report with an optional `title`. 
-   * Each function can have a specified number of iterations intrinsically (`effort`) and/or a title.
+   * See `benchOff` for more details regarding parameters.
    */
   def benchOffPair[A](
     title: String = "", targetTime: Double = Double.NaN, op: (A,A) => A = uncertainPicker[A]
@@ -695,7 +701,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
     benchOffPair(title, targetTime, w.combine)(w(), weffort*w.reps, wtitle)(v(), veffort*v.reps, vtitle)
   }
   
-  /** Benchmarks `f` against `h` and prints the result (lines sent to `pr`, which is `println` by default). */
+  /** Benchmarks `f` against `h` and prints the result (lines sent to `pr`, which is `println` by default).  See `pbench` for details of arguments. */
   def pbenchOff[A](
     title: String = "", pr: String => Unit = Thyme.printer, op: (A,A) => A = uncertainPicker[A]
   )(
@@ -717,7 +723,21 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
   // ----------------------------------------------------------------
   // "order" handling--O(n^x) computation with and without a log term
   // ----------------------------------------------------------------
-  
+  /** '''WARNING--this is experimental code and subject to change.'''
+    * `order` estimates the computational complexity of provided code `f`.
+    * @param resource Generates resources needed for `f` to run.  See source for details.
+    * @param f The code to test, which should do `n`-much work (i.e. it should scale the operation according to the var `n` in the resource; `data` will be at least enough and may be more than enough).
+    * @param bo An output record.
+    * @param n0 The midpoint for the size of the computation.
+    * @param g Combines two results from the function (default: picks based on a volatile var)
+    * @param minVariation What factor larger/smaller should be tested, at a minimum (default: `sqrt(2)`)?
+    * @param maxVariation Up to what factor larger/smaller can be tested if statistics are ambiguous (default: `4`)?
+    * @param sampleSize The number of different sizes tested (default: `10`)
+    * @param numPerSample The number of repeats at each size (default: `20`)
+    * @param bootstrapN Deprecated.  Not used.
+    * @param targetTimeOverride Often need to override the default target time to get this to finish in a reasonable amount of time (default: `Double.NaN`, meaning do not override)
+    * @param seed A seed used for the random number generator.
+    */
   def order[A,B](resource: Int => Thyme.Resource[B])(f: Thyme.Resource[B] => A)(
     bo: Thyme.Scaled,
     n0: Int,
@@ -844,12 +864,14 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
     a
   }
   
+  /** Order handling.  See `order` for details of parameters.  Returns a tuple containing a result from `f` and the benchmarking report. */
   def orderPair[A,B](resource: Int => Thyme.Resource[B])(f: Thyme.Resource[B] => A)(n0: Int, targetTime: Double = Double.NaN): (A, Thyme.Scaled) = {
     val bo = Thyme.Scaled.empty
     val ans = order(resource)(f)(bo, n0, targetTimeOverride = targetTime)
     (ans, bo)
   }
   
+  /** Order handling.  See `order` for details of parameters.  Returns a tuple containing a result from `f`; prints a benchmarking report. */
   def porder[A,B](resource: Int => Thyme.Resource[B])(f: Thyme.Resource[B] => A)(n0: Int, title: String = "", pr: String => Unit = Thyme.printer): A = {
     val bo = Thyme.Scaled.empty
     val ans = order(resource)(f)(bo,n0)
@@ -858,6 +880,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
     ans
   }
   
+  /** Order handling.  Packs functions into `Resource` automatically. (Args for `f` are `start`, `n`, `data`.) Returns a tuple containing a result from `f`; prints a benchmarking report. */
   def porder[A,B](resource: Int => B)(f: (Int,Int,B) => A)(n0: Int, title: String = "", pr: String => Unit = Thyme.printer): A = {
     val bo = Thyme.Scaled.empty
     val ans = order(Thyme.Resource(resource))(Thyme.Resource.inline(f))(bo, n0)
