@@ -515,7 +515,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
     }
     if (br.runtimeResults.n > 0) { br.runtimeResults = Distribution.compute(br.runtimeResults.data.value, intrinsicError = br.intrinsicError) }
     val t1 = System.nanoTime
-    br.effort = max(1, effort)
+    br.effort = 1
     br.wallClockTime = 1e-9*(t1-t0)
     a
   }
