@@ -10,7 +10,8 @@ MATHS = \
 BENCHES = \
   ichi/bench/JvmStatus.class \
   ichi/bench/Thyme.class \
-  ichi/bench/Parsley.class
+  ichi/bench/Parsley.class \
+  ichi/bench/TsvPrinter.class
 
 EXAMPLES = \
   ichi/bench/examples/ParsleyExample.class \
@@ -63,6 +64,14 @@ ichi/bench/Parsley.class : \
   ichi/bench/Thyme.class \
   bench/Parsley.scala
 	scalac bench/Parsley.scala
+
+ichi/bench/TsvPrinter.class : \
+  makefile \
+  ${MATHS} \
+  ichi/bench/JvmStatus.class \
+  ichi/bench/Thyme.class \
+  bench/TsvPrinter.scala
+	scalac bench/TsvPrinter.scala
 
 ichi/bench/examples/ParsleyExample.class : \
   makefile \
