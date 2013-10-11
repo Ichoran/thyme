@@ -114,7 +114,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
   
   /** Creates a mutable JvmStatus instance that obeys the watch flags */
   def createJS: JvmStatusMut = (new JvmStatusMut).enableCL(watchingLoads).enableGC(watchingGarbage).enableMem(watchingMemory)
-  
+
 
 
   // ------------------------------------------------------------
@@ -1482,10 +1482,20 @@ object Thyme {
   }
   
   private[this] val h2rng = new ichi.maths.Rng.Hybrid2
-  private[this] var warmedUp = false
+  object HowWarm extends Enumeration {
+    val Cold, Clock, Bench, BenchOff, Order = Value
+  }
+  private[this] var warmedUp: HowWarm.Value = HowWarm.Cold
   
-  /** Warm up all the benchmarking code itself, and return an instance of Thyme.  Takes 10-30s on most machines.  Usually unnecessary, but can help reproducibility of fine distictions in timing. */
-  def warmed(accuracyTarget: Double = 0.03, verbose: (String => Unit) = null) = {
+  /** Warm up all the benchmarking code itself, and return an instance of Thyme.
+    * Takes 10-30s on most machines.
+    * Usually unnecessary, but can help reproducibility of fine distictions in timing. 
+    * Can specify which parts to warm up: `HowWarm.Cold` skips warmup.  `HowWarm.Clock` just
+    * warms the creation of Thyme.  `HowWarm.Bench` warms benchmarking.  `HowWarm.BenchOff` warms
+    * head-to-head benchmarking.  `HowWarm.Order` warms computational complexity benchmarking.
+    * Each degree of warming includes all the previous ones; the default is `HowWarm.Order` (everything).
+    */
+  def warmed(accuracyTarget: Double = 0.03, verbose: (String => Unit) = null, warmth: HowWarm.Value = HowWarm.Order): Thyme = {
     def done(dt: Double) = f"done in ${if (dt>=1) dt else dt*1e3}%.2f ${if (dt>=1) "s" else "ms"}\n"
     def verb(ta: Double, tb: Double, msg: String) {
       if (verbose != null) {
@@ -1493,58 +1503,85 @@ object Thyme {
         if (msg != null && msg.length > 0) verbose(msg)
       }
     }
-    synchronized { if (warmedUp == false) {
+    synchronized { if (warmedUp < warmth) {
       val t0 = System.nanoTime
       if (verbose != null) { verbose("Creating Thyme instances and warming busywork methods...") }
-      val th = (for (i <- 1 to 10) yield new Thyme).sortBy(_.measurementIncrement).head
+      val th = if (warmedUp == HowWarm.Cold) (for (i <- 1 to 10) yield new Thyme).sortBy(_.measurementIncrement).head else new Thyme
+      warmedUp = HowWarm.Clock
+      if (warmth == HowWarm.Clock) {
+        verb(t0, System.nanoTime, "")
+        return new Thyme(accuracyTarget)
+      }
       th.targetTime = 0.05
       val lin = (for (i <- 1 to 3) yield th.Warm(linearWork(8192))).last
       val quad = (for (i <- 1 to 3) yield th.Warm(quadraticWork(256))).last
+
       val t1 = System.nanoTime
-      verb(t0, t1, "Warming up benchmarking...")
-      var bL = (for (i <- 1 to 4) yield th.benchPairWarm(lin)).sortBy(_._2.runtime).head._2
-      var bQ = (for (i <- 1 to 4) yield th.benchPairWarm(quad)).sortBy(_._2.runtime).head._2
-      var close = false
-      var i = 0
-      while (!close && i < 8) {
-        val l = th.benchPairWarm(lin)._2
-        val q = th.benchPairWarm(quad)._2
-        if (abs(l.runtime - bL.runtime)/sqrt(l.runtimeError.sq + bL.runtimeError.sq) < icdfNormal(0.95) && abs(q.runtime - bQ.runtime)/sqrt(q.runtimeError.sq + bQ.runtimeError.sq) < icdfNormal(0.95)) close = true
-        bL = l
-        bQ = q
-        i += 1
+      if (warmedUp < HowWarm.Bench) {
+        verb(t0, t1, "Warming up benchmarking...")
+        var bL = (for (i <- 1 to 4) yield th.benchPairWarm(lin)).sortBy(_._2.runtime).head._2
+        var bQ = (for (i <- 1 to 4) yield th.benchPairWarm(quad)).sortBy(_._2.runtime).head._2
+        var close = false
+        var i = 0
+        while (!close && i < 8) {
+          val l = th.benchPairWarm(lin)._2
+          val q = th.benchPairWarm(quad)._2
+          if (abs(l.runtime - bL.runtime)/sqrt(l.runtimeError.sq + bL.runtimeError.sq) < icdfNormal(0.95) && abs(q.runtime - bQ.runtime)/sqrt(q.runtimeError.sq + bQ.runtimeError.sq) < icdfNormal(0.95)) close = true
+          bL = l
+          bQ = q
+          i += 1
+        }
+        warmedUp = HowWarm.Bench
       }
       val t2 = System.nanoTime
-      verb(t1, t2, "Warming up head-to-head benchmarking...")
-      th.targetTime = 0.01
-      val fastlin = th.Warm(linearWork(8192))
-      val fastquad = th.Warm(quadraticWork(256))
-      th.targetTime = 0.05
-      var bO = (for (i <- 1 to 4) yield th.benchOffPairWarm()(fastlin)(fastquad)).sortBy(_._2.foldChangeRuntime.rdiff.mean).tail.head._2
-      close = false
-      i = 0
-      while (!close && i < 4) {
-        val (k,o) = th.benchOffPairWarm()(fastlin)(fastquad)
-        if (o.foldChangeRuntime.rdiff.tTest(bO.foldChangeRuntime.rdiff) > 0.05) close = true
-        bO = o
-        i += 1
+      if (warmth == HowWarm.Bench) {
+        verb(t1, t2, "")
+        return new Thyme(accuracyTarget)
+      }
+
+      if (warmedUp < HowWarm.BenchOff) {
+        verb(t1, t2, "Warming up head-to-head benchmarking...")
+        th.targetTime = 0.01
+        val fastlin = th.Warm(linearWork(8192))
+        val fastquad = th.Warm(quadraticWork(256))
+        th.targetTime = 0.05
+        var bO = (for (i <- 1 to 4) yield th.benchOffPairWarm()(fastlin)(fastquad)).sortBy(_._2.foldChangeRuntime.rdiff.mean).tail.head._2
+        var close = false
+        var i = 0
+        while (!close && i < 4) {
+          val (k,o) = th.benchOffPairWarm()(fastlin)(fastquad)
+          if (o.foldChangeRuntime.rdiff.tTest(bO.foldChangeRuntime.rdiff) > 0.05) close = true
+          bO = o
+          i += 1
+        }
+        warmedUp = HowWarm.BenchOff
       }
       val t3 = System.nanoTime
-      verb(t2, t3, "Warming up computational complexity benchmarking...")
-      var bS = (for (i <- 1 to 3) yield th.orderPair((n: Int) => new Resource[Unit](n){ def data = () })(r => quadraticWork(r.n))(128)).sortBy(sr => abs(sr._2.fits.alpha-2)).head._2
-      close = false
-      i = 0
-      while (!close && i < 4) {
-        val s = th.orderPair((n: Int) => new Resource[Unit](n) { def data = () })(r => quadraticWork(r.n))(128)._2
-        if (abs(s.fits.alpha - bS.fits.alpha)/sqrt(s.fits.alphaError.sq + bS.fits.alphaError.sq) < icdfNormal(0.95)) close = true
-        bS = s
-        i += 1
+      if (warmth == HowWarm.BenchOff) {
+        verb(t2, t3, "")
+        return new Thyme(accuracyTarget)
       }
-      val t4 = System.nanoTime
-      verb(t3, t4, "")
-      warmedUp = true
+      
+      if (warmedUp < HowWarm.Order) {
+        verb(t2, t3, "Warming up computational complexity benchmarking...")
+        var bS = (for (i <- 1 to 3) yield th.orderPair((n: Int) => new Resource[Unit](n){ def data = () })(r => quadraticWork(r.n))(128)).sortBy(sr => abs(sr._2.fits.alpha-2)).head._2
+        var close = false
+        var i = 0
+        while (!close && i < 4) {
+          val s = th.orderPair((n: Int) => new Resource[Unit](n) { def data = () })(r => quadraticWork(r.n))(128)._2
+          if (abs(s.fits.alpha - bS.fits.alpha)/sqrt(s.fits.alphaError.sq + bS.fits.alphaError.sq) < icdfNormal(0.95)) close = true
+          bS = s
+          i += 1
+        }
+        val t4 = System.nanoTime
+        verb(t3, t4, "")
+        warmedUp = HowWarm.Order
+      }
     } }
     new Thyme(accuracyTarget)
   }
+  
+  /** Warm up Thyme and benchmarking code, but not head-to-head benchmarks or computational copmlexity. */
+  def warmedBench(accuracyTarget: Double = 0.03, verbose: (String => Unit) = null) = warmed(accuracyTarget, verbose, HowWarm.Bench)
 }
 

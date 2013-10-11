@@ -1,6 +1,6 @@
 Thyme and Parsley are microbenchmarking and profiling utilities.
 
-This is version 0.1.0.
+This is version 0.1.1.
 
 A couple of things to keep in mind before you start:
   (1) Context is important!  (Especially for tricky JIT compilation and GC.)
@@ -101,3 +101,8 @@ Method 3
   0 classes were loaded
 $
 
+
+Recent changes:
+  0.1.1
+    1. Added argument to allow Thyme.warmed to partially warm an
+instance.
