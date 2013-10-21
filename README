@@ -11,6 +11,9 @@ If you want to build the project, just compile everything in maths
 together and then everything in bench--that works fine.  If you're on
 a Unixy system, there's makefile which works also (and builds the docs).
 
+If you use sbt, in sbt just type "run" to compile then you will will
+be offered a list of the included examples to run.
+
 There are no dependencies save Scala 2.10 itself.
 
 Thyme.jar is included (or you can just grab the jar itself).  Why not try it
