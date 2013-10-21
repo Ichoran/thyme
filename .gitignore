@@ -5,3 +5,6 @@
 *.png
 *.class
 *~
+.history
+project/
+target/
