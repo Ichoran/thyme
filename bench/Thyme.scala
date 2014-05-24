@@ -881,7 +881,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
   }
   
   /** Order handling.  Packs functions into `Resource` automatically. (Args for `f` are `start`, `n`, `data`.) Returns a tuple containing a result from `f`; prints a benchmarking report. */
-  def porder[A,B](resource: Int => B)(f: (Int,Int,B) => A)(n0: Int, title: String = "", pr: String => Unit = Thyme.printer): A = {
+  def porder[A,B](resource: Int => B)(f: (Int,Int,B) => A)(n0: Int, title: String, pr: String => Unit): A = {
     val bo = Thyme.Scaled.empty
     val ans = order(Thyme.Resource(resource))(Thyme.Resource.inline(f))(bo, n0)
     bo.title = title
@@ -1496,7 +1496,11 @@ object Thyme {
     * Each degree of warming includes all the previous ones; the default is `HowWarm.Order` (everything).
     */
   def warmed(accuracyTarget: Double = 0.03, verbose: (String => Unit) = null, warmth: HowWarm.Value = HowWarm.Order): Thyme = {
-    def done(dt: Double) = f"done in ${if (dt>=1) dt else dt*1e3}%.2f ${if (dt>=1) "s" else "ms"}\n"
+    def done(dt: Double) = {
+      val that = if (dt >=1 ) dt else dt * 1e3
+      val suffix = if (dt>=1) "s" else "ms"
+      f"done in $that%.2f $suffix\n"
+    }
     def verb(ta: Double, tb: Double, msg: String) {
       if (verbose != null) {
         if (tb.finite && ta.finite) verbose(done(abs(tb-ta)*1e-9))
