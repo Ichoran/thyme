@@ -810,7 +810,7 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
         i = 0
         while (i < ns.length) {
           bench{
-            r.start = if (ns(i)<ns.length) rng.roll(ns.length-ns(i)) else 0
+            r.start = if (ns(i) < ns.length) rng.roll(ns.length-ns(i)) else 0
             r.n = ns(i)
             f(r)
           }(bo.benches(i), sampleSize = numPerSample, targetTimeOverride = targTime)
@@ -879,9 +879,9 @@ class Thyme(val accuracyTarget: Double = 0.03, watchLoads: Boolean = true, watch
     pr(bo.toString)
     ans
   }
-  
+
   /** Order handling.  Packs functions into `Resource` automatically. (Args for `f` are `start`, `n`, `data`.) Returns a tuple containing a result from `f`; prints a benchmarking report. */
-  def porder[A,B](resource: Int => B)(f: (Int,Int,B) => A)(n0: Int, title: String = "", pr: String => Unit = Thyme.printer): A = {
+  def porderFrom[A,B](resource: Int => B)(f: (Int,Int,B) => A)(n0: Int, title: String = "", pr: String => Unit = Thyme.printer): A = {
     val bo = Thyme.Scaled.empty
     val ans = order(Thyme.Resource(resource))(Thyme.Resource.inline(f))(bo, n0)
     bo.title = title
